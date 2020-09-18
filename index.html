@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<style>
+    .vzp_map {
+        height: 65vw;
+        width: 100%;
+    }
+</style>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+
+<div class="vzp_map" id="detsky"></div>
+<div class="vzp_map" id="praktik"></div>
+<div class="vzp_map" id="gyn"></div>
+<div class="vzp_map" id="zubar"></div>
+
+<script>
+    const brks = {
+        'detsky': [21, 24, 27, 32],
+        'praktik': [42, 51, 57, 65],
+        'gyn': [15, 18, 21, 25],
+        'zubar': [51, 59, 75, 96],
+    }
+
+    const txt = {
+        'detsky': 'dětských ordinací',
+        'praktik': 'praktických ordinací',
+        'gyn': 'gynekologických ordinací',
+        'zubar': 'zubařských ordinací',
+    }
+
+    fetch('https://data.irozhlas.cz/vzp-doktori/data.json')
+        .then(response => response.json())
+        .then(data => {            
+            const maps = document.getElementsByClassName('vzp_map')
+            
+            for (let mapDiv of maps) {
+                let map = L.map(mapDiv.id, {scrollWheelZoom: false})
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+
+                const mapData = L.geoJSON(data.features, {
+                    style: function(feature) {
+                        const val = Math.round((feature.properties[mapDiv.id] / feature.properties.POCET_OB_11) * 1000000) / 10
+                        let col
+                        if (val <= brks[mapDiv.id][0]) { col = '#d7191c' } else
+                        if (val <= brks[mapDiv.id][1]) { col = '#fdae61' } else
+                        if (val <= brks[mapDiv.id][2]) { col = '#ffffbf' } else
+                        if (val <= brks[mapDiv.id][3]) { col = '#abd9e9' } else
+                        col = '#2c7bb6'
+
+                        return {
+                            color: 'white',
+                            weight: 1,
+                            fillColor: col,
+                            fillOpacity: 0.8
+                        }
+
+                    }
+                })
+                mapData.bindPopup(function (layer) {
+                    const pr = layer.feature.properties
+                    return `<b>Okres ${pr.NAZ_LAU1}</b><br>${Math.round((pr[mapDiv.id] / pr.POCET_OB_11) * 1000000) / 10} ${txt[mapDiv.id]} na 100 tis. obyvatel`
+                })
+                mapData.addTo(map);
+                map.fitBounds(mapData.getBounds());
+            }
+    });
+    
+</script>
